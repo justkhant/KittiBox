@@ -29,6 +29,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 sys.path.insert(1, 'incl')
+sys.path.insert(1, 'inputs')
 
 import tensorvision.train as train
 import tensorvision.utils as utils

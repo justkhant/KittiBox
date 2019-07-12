@@ -329,8 +329,9 @@ def loss(hypes, decoded_logits, labels):
       loss: Loss tensor of type float.
     """
 
-    confidences, boxes, mask = labels
-
+    confidences, boxes,  mask, calib, calib_pinv, xy_scale = labels
+    boxes, dimensions, location, alpha = tf.split(boxes, [4, 3, 3, 1], 3) 
+    
     pred_boxes = decoded_logits['pred_boxes']
     pred_logits = decoded_logits['pred_logits']
     pred_confidences = decoded_logits['pred_confidences']
@@ -415,7 +416,7 @@ def evaluation(hyp, images, labels, decoded_logits, losses, global_step):
     pred_boxes = decoded_logits['pred_boxes']
     # Estimating Accuracy
     grid_size = hyp['grid_width'] * hyp['grid_height']
-    confidences, boxes, mask = labels
+    confidences, boxes, mask, calib, calib_pinv, xy_scale = labels
 
     new_shape = [hyp['batch_size'], hyp['grid_height'],
                  hyp['grid_width'], hyp['num_classes']]
@@ -450,15 +451,18 @@ def evaluation(hyp, images, labels, decoded_logits, losses, global_step):
 
     def log_image(np_img, np_confidences, np_boxes, np_global_step,
                   pred_or_true):
-
+        event_image = np.sum(np_img, -1, keepdims=True)
+        event_image = np.tile(event_image, [1, 1, 1, 3])
+        
         if pred_or_true == 'pred':
             plot_image = train_utils.add_rectangles(
-                hyp, np_img, np_confidences, np_boxes, use_stitching=True,
+                hyp, event_image, np_confidences, np_boxes, use_stitching=True,
                 rnn_len=hyp['rnn_len'])[0]
         else:
             np_mask = np_boxes
+            
             plot_image = data_utils.draw_encoded(
-                np_img[0], np_confidences[0], mask=np_mask[0], cell_size=32)
+                event_image[0], np_confidences[0], mask=np_mask[0], cell_size=32)
 
         num_images = 10
 
