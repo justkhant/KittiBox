@@ -1585,7 +1585,6 @@ training/hdf5_files/001583_data.hdf5 training/label_2/001583.txt
 training/hdf5_files/001584_data.hdf5 training/label_2/001584.txt
 training/hdf5_files/001585_data.hdf5 training/label_2/001585.txt
 training/hdf5_files/001586_data.hdf5 training/label_2/001586.txt
-training/hdf5_files/001587_data.hdf5 training/label_2/001587.txt
 training/hdf5_files/001588_data.hdf5 training/label_2/001588.txt
 training/hdf5_files/001589_data.hdf5 training/label_2/001589.txt
 training/hdf5_files/001590_data.hdf5 training/label_2/001590.txt
