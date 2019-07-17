@@ -2,13 +2,6 @@ import h5py
 import tensorflow as tf
 import numpy as np
 
-hdf5_file = '/home/khantk/kitti_data/hdf5_files/002000_data.hdf5' 
-data = h5py.File(hdf5_file, "r")
-events = data["davis"]["events"].value
-
-events = events[np.newaxis, ...].astype(np.float32)  
-
-
 def calc_floor_ceil_delta(x):
     x_fl = tf.floor(x)
     x_ce = tf.ceil(x)
@@ -127,8 +120,3 @@ def gen_interpolated_event_volume(events, volume_size, do_interp=True):
     #event_volume /= tf.reduce_max(event_volume)
     
     return event_volume, valid_vals
-
-
-
-volume = gen_interpolated_event_volume(events, (1, 861, 260, 9))
-print(volume)
