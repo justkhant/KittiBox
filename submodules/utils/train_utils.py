@@ -73,7 +73,7 @@ def compute_rectangels(H, confidences, boxes, use_stitching=False, rnn_len=1, mi
 
 def add_rectangles(H, orig_image, confidences, boxes, use_stitching=False, rnn_len=1, min_conf=0.1, show_removed=True, tau=0.25,
     color_removed=(0, 0, 255), color_acc=(0, 0, 255)):
-    image = np.copy(orig_image[0])
+    image = np.copy(orig_image)
     num_cells = H["grid_height"] * H["grid_width"]
     boxes_r = np.reshape(boxes, (-1,
                                  H["grid_height"],
