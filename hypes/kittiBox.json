@@ -1,4 +1,7 @@
 {
+    "dirs": {
+	"output_dir" : "/NAS/home/KittiBox/RUNS/events_box"
+    },    
     "model": {
     "input_file": "../inputs/kitti_input.py",
     "architecture_file" : "../encoder/vgg.py",
@@ -7,7 +10,7 @@
     "evaluator_file" : "../evals/kitti_eval.py"
     },
     "data": {
-        "train_file": "/home/khantk/KittiBox/data/train.txt",
+        "train_file": "/NAS/home/KittiBox/data/train.txt",
         "val_file": "KittiBox/val.txt",
         "truncate_data": false,
         "eval_cmd": "../submodules/KittiObjective2/./evaluate_object2",
@@ -16,8 +19,8 @@
     "logging": {
         "display_iter": 200,
         "eval_iter": 2000,
-        "write_iter": 800,
-        "save_iter": 2000,
+        "write_iter": 200,
+        "save_iter": 200,
         "image_iter": 150000
     },
     "arch": {
@@ -48,7 +51,7 @@
     "image_width": 861, 
     "grid_width": 27,
     "grid_height": 9,
-    "batch_size": 2, 
+    "batch_size": 8, 
     "tau": 0.35,
     "scale_down": 0.1,
     "focus_size": 1.8,
@@ -58,5 +61,5 @@
     "num_classes": 2,
     "wd": 5e-4,
     "detect_truck": false,
-    "num_parallel_map_calls": 1
+    "num_parallel_map_calls": 8
 }
