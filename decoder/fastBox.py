@@ -407,7 +407,7 @@ def loss(hypes, decoded_logits, labels):
     return losses
 
 
-def evaluation(hyp, images, labels, decoded_logits, losses, global_step):
+def evaluation(hyp, event_imgs, original_imgs, labels, decoded_logits, losses, global_step):
     """
     Compute summary metrics for tensorboard
     """
@@ -446,43 +446,69 @@ def evaluation(hyp, images, labels, decoded_logits, losses, global_step):
     pred_boxes_r = tf.reshape(
         pred_boxes, [hyp['batch_size'], grid_size, hyp['rnn_len'],
                      4])
-    test_pred_confidences = pred_confidences_r[0, :, :, :]
-    test_pred_boxes = pred_boxes_r[0, :, :, :]
+    test_pred_confidences = pred_confidences_r#[0, :, :, :]
+    test_pred_boxes = pred_boxes_r#[0, :, :, :]
 
     def log_image(np_img, np_confidences, np_boxes, np_global_step,
                   pred_or_true):
-        event_image = np.sum(np_img, -1, keepdims=True)
-        event_image = np.tile(event_image, [1, 1, 1, 3])
+        if np_img.shape[-1] != 3:
+            event_image = np.sum(np_img, -1, keepdims=True)
+            event_image = np.tile(event_image, [1, 1, 1, 3])
+        else:
+            event_image = np_img
+
+        plot_image = np.zeros(event_image.shape, dtype=np.uint8)
         
         if pred_or_true == 'pred':
-            plot_image = train_utils.add_rectangles(
-                hyp, event_image, np_confidences, np_boxes, use_stitching=True,
-                rnn_len=hyp['rnn_len'])[0]
+            plot_image = plot_image.astype(np.float32)
+            
+            for i in range(plot_image.shape[0]):
+                plot_image[i] = train_utils.add_rectangles(
+                    hyp, event_image[i], np_confidences[i], np_boxes[i], use_stitching=True,
+                    rnn_len=hyp['rnn_len'])[0]
         else:
             np_mask = np_boxes
             
-            plot_image = data_utils.draw_encoded(
-                event_image[0], np_confidences[0], mask=np_mask[0], cell_size=32)
+            for i in range(plot_image.shape[0]):    
+                plot_image[i] = data_utils.draw_encoded(
+                    event_image[i], np_confidences[i], mask=np_mask[i], cell_size=32)
+        #num_images = 10
 
-        num_images = 10
+        #filename = '%s_%s.jpg' % \
+        #    ((np_global_step // hyp['logging']['write_iter'])
+        #        % num_images, pred_or_true)
+        #img_path = os.path.join(hyp['dirs']['output_dir'], filename)
 
-        filename = '%s_%s.jpg' % \
-            ((np_global_step // hyp['logging']['write_iter'])
-                % num_images, pred_or_true)
-        img_path = os.path.join(hyp['dirs']['output_dir'], filename)
-
-        scp.misc.imsave(img_path, plot_image)
+        #scp.misc.imsave(img_path, plot_image)
         return plot_image
 
-    pred_log_img = tf.py_func(log_image,
-                              [images, test_pred_confidences,
+
+    
+    [pred_log_img] = tf.py_func(log_image,
+                              [original_imgs, test_pred_confidences,
                                test_pred_boxes, global_step, 'pred'],
                               [tf.float32])
 
-    true_log_img = tf.py_func(log_image,
-                              [images, confidences,
+    [true_log_img] = tf.py_func(log_image,
+                              [original_imgs, confidences,
                                mask, global_step, 'true'],
                               [tf.uint8])
-    tf.summary.image('/pred_boxes', tf.stack(pred_log_img))
-    tf.summary.image('/true_boxes', tf.stack(true_log_img))
+    
+    tf.summary.image('pred_boxes', pred_log_img)
+    tf.summary.image('true_boxes', true_log_img)
+
+
+    [pred_log_img_events] = tf.py_func(log_image,
+                              [event_imgs, test_pred_confidences,
+                               test_pred_boxes, global_step, 'pred'],
+                              [tf.float32])
+
+    [true_log_img_events] = tf.py_func(log_image,
+                              [event_imgs, confidences,
+                               mask, global_step, 'true'],
+                              [tf.uint8])
+    
+    tf.summary.image('pred_boxes_events', pred_log_img_events)
+    tf.summary.image('true_boxes_events', true_log_img_events)
+    
     return eval_list
