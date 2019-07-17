@@ -107,6 +107,7 @@ def _rescale_boxes(current_shape, anno, target_height, target_width):
     x_scale = target_width / float(current_shape[1])
     y_scale = target_height / float(current_shape[0])
     z_3d_scale = ((x_scale**2 + y_scale**2)*0.5)**0.5
+
     for r in anno.rects:
         assert r.x1 < r.x2
         r.x1 *= x_scale
@@ -115,6 +116,7 @@ def _rescale_boxes(current_shape, anno, target_height, target_width):
         r.y1 *= y_scale
         r.y2 *= y_scale
         r.xy_scale = np.array([x_scale, y_scale], dtype=np.float32)
+    
     return anno
 
 
@@ -142,7 +144,6 @@ def _generate_mask(hypes, ignore_rects):
     return mask
 
 def read_hdf5_file(hdf5_file, hypes):
-
     data = h5py.File(hdf5_file, "r")
     events = data["davis"]["events"].value
     event_mask = np.logical_and(events[:, 0] < hypes["image_width"] - 1,
@@ -153,14 +154,12 @@ def read_hdf5_file(hdf5_file, hypes):
     
     return events
 
-def read_anno(gt_image_file, calib_file, hypes): 
+def read_anno(gt_image_file, calib_file, hypes, original_shape): 
     rect_list = read_kitti_anno(gt_image_file, calib_file,
                                 detect_truck=hypes['detect_truck'])
     anno = AnnoLib.Annotation()
     anno.rects = rect_list
-
-    original_shape = (375, 1242) 
-            
+    
     anno = _rescale_boxes(original_shape, anno,
                          hypes["image_height"],
                          hypes["image_width"])
@@ -173,7 +172,7 @@ def read_anno(gt_image_file, calib_file, hypes):
     # for each cell, this array contains the ground truth boxes around it (within focus area, defined by center distance)
     # confs: [1, grid_height*grid_width, 1, max_len, 1]
     # record the valid boxes, since max_len is greater than the number of ground truth boxes
-    boxes, confs, calib, calib_pinv,  xy_scale = annotation_to_h5(hypes,
+    boxes, confs, calib, calib_pinv, xy_scale = annotation_to_h5(hypes,
                                                                   pos_anno,
                                                                   hypes["grid_width"],
                                                                   hypes["grid_height"],
@@ -198,7 +197,7 @@ def read_anno(gt_image_file, calib_file, hypes):
         corners.astype(np.float32)
 
     
-def load_data(hypes, hdf5_file, gt_image_file, calib_file):
+def load_data(hypes, hdf5_file, gt_image_file, calib_file, img_path):
     read_hdf5_file_tf = lambda hdf5: read_hdf5_file(hdf5, hypes) 
 
     [events] = tf.py_func(read_hdf5_file_tf, [hdf5_file], [tf.float32])
@@ -210,14 +209,23 @@ def load_data(hypes, hdf5_file, gt_image_file, calib_file):
 
     event_volume = tf.squeeze(event_volume)
 
-    read_anno_tf = lambda gt_file, ca_file: read_anno(gt_file, ca_file, hypes) 
+    image = read_image(img_path)
+    original_shape = tf.shape(image)[-3:-1]
+    image = tf.image.resize_images(image, [hypes["image_height"], hypes["image_width"]])
+   
+    read_anno_tf = lambda gt_file, ca_file, o_shape: read_anno(gt_file, ca_file, hypes, o_shape) 
     
     boxes, confs, calib, calib_pinv, xy_scale, mask, corners = tf.py_func(
-        read_anno_tf, [gt_image_file, calib_file],
-        [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])  
+        read_anno_tf, [gt_image_file, calib_file, original_shape],
+        [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])
 
-    return event_volume, (confs, boxes, mask, calib, calib_pinv, xy_scale)
+    return event_volume, (confs, boxes, mask, calib, calib_pinv, xy_scale), image#, corners
 
+def read_image(img_path):
+    img_path = tf.read_file(img_path)
+    image = tf.image.decode_png(img_path, channels=1)
+    image = tf.cast(image, tf.float32) 
+    return image
 
 def create_dataset(kitti_txt, hypes, random_shuffle1=True):
     hdf5_files = []
@@ -243,29 +251,31 @@ def create_dataset(kitti_txt, hypes, random_shuffle1=True):
         gt_image_file = os.path.join(base_path, gt_image_file)
         assert os.path.exists(gt_image_file), \
             "File does not exist: %s" % gt_image_file
-        #image_file = os.path.join(base_path, hdf5_file_split[0], 'image_2', index + '.png')
-        #assert os.path.exists(image_file), \
-            #"File does not exist: $s" % image_file
+        image_file = os.path.join(base_path, hdf5_file_split[0], 'image_2', index + '.png')
+        assert os.path.exists(image_file), \
+            "File does not exist: $s" % image_file
         
         hdf5_files.append(hdf5_file)
         calib_files.append(calib_file)
         gt_image_files.append(gt_image_file)
-        #image_files.append(image_file) 
+        image_files.append(image_file) 
         
     hdf5_files_t = tf.constant(hdf5_files)
     calib_files_t = tf.constant(calib_files)
     gt_image_files_t = tf.constant(gt_image_files) 
-    #image_files_t = tf.constant(image_files)
+    image_files_t = tf.constant(image_files)
     dataset = tf.data.Dataset.from_tensor_slices((hdf5_files_t,
                                                   gt_image_files_t,
-                                                  calib_files_t))
+                                                  calib_files_t,
+                                                  image_files_t))
 
     hypes["rnn_len"] = 1
-    dataset = dataset.map(lambda hdf5, gt, calib: (load_data(hypes, hdf5, gt, calib)),
+    dataset = dataset.map(lambda hdf5, gt, calib, img: load_data(hypes, hdf5, gt, calib, img),
                           num_parallel_calls=hypes["num_parallel_map_calls"])
 
-    batched_dataset = dataset.batch(hypes["batch_size"])
-    batched_dataset = batched_dataset.prefetch(buffer_size=hypes["batch_size"])  
+    batched_dataset = dataset.batch(hypes["batch_size"], drop_remainder=True)
+    batched_dataset = batched_dataset.prefetch(buffer_size=hypes["batch_size"])
+    batched_dataset = batched_dataset.repeat() 
     iterator = batched_dataset.make_one_shot_iterator()
     next_element = iterator.get_next() 
 
