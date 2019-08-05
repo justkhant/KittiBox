@@ -64,10 +64,11 @@ except ImportError:
 flags.DEFINE_string('logdir', None,
                     'Path to logdir.')
 flags.DEFINE_string('input_image', None,
-                    'Image to apply KittiBox.')
-flags.DEFINE_string('output_image', None,
-                    'Image to apply KittiBox.')
-
+                    'Input image or directory containing images to apply KittiBox.')
+flags.DEFINE_string('output_dir', None,
+                    'dir to store output images')
+flags.DEFINE_string('save_boxes_dir', None,
+                    'Directory to save coordinates of bounding boxes.') 
 
 default_run = 'KittiBox_pretrained'
 weights_url = ("ftp://mi.eng.cam.ac.uk/"
@@ -98,11 +99,11 @@ def main(_):
     tv_utils.set_gpus_to_use()
 
     if FLAGS.input_image is None:
-        logging.error("No input_image was given.")
+        logging.error("No input_images were given.")
         logging.info(
-            "Usage: python demo.py --input_image data/test.png "
-            "[--output_image output_image] [--logdir /path/to/weights] "
-            "[--gpus GPUs_to_use] ")
+            "Usage: python demo.py --input_image data/images [or data/images/000000.png] "
+            "[--output_dir /path/to/output_images] [--logdir /path/to/weights] "
+            "[--gpus GPUs_to_use] [--save_boxes_dir /path/to/bounding_boxes]")
         exit(1)
 
     if FLAGS.logdir is None:
@@ -148,72 +149,94 @@ def main(_):
 
         logging.info("Weights loaded successfully.")
 
-    input_image = FLAGS.input_image
-    logging.info("Starting inference using {} as input".format(input_image))
-
-    # Load and resize input image
-    image = scp.misc.imread(input_image)
-    image = scp.misc.imresize(image, (hypes["image_height"],
-                                      hypes["image_width"]),
-                              interp='cubic')
-    feed = {image_pl: image}
-
-    # Run KittiBox model on image
-    pred_boxes = prediction['pred_boxes_new']
-    pred_confidences = prediction['pred_confidences']
-
-    (np_pred_boxes, np_pred_confidences) = sess.run([pred_boxes,
-                                                     pred_confidences],
-                                                    feed_dict=feed)
-
-    # Apply non-maximal suppression
-    # and draw predictions on the image
-    output_image, rectangles = kittibox_utils.add_rectangles(
-        hypes, [image], np_pred_confidences,
-        np_pred_boxes, show_removed=False,
-        use_stitching=True, rnn_len=1,
-        min_conf=0.50, tau=hypes['tau'], color_acc=(0, 255, 0))
-
-    threshold = 0.5
-    accepted_predictions = []
-    # removing predictions <= threshold
-    for rect in rectangles:
-        if rect.score >= threshold:
-            accepted_predictions.append(rect)
-
-    print('')
-    logging.info("{} Cars detected".format(len(accepted_predictions)))
-
-    # Printing coordinates of predicted rects.
-    for i, rect in enumerate(accepted_predictions):
-        logging.info("")
-        logging.info("Coordinates of Box {}".format(i))
-        logging.info("    x1: {}".format(rect.x1))
-        logging.info("    x2: {}".format(rect.x2))
-        logging.info("    y1: {}".format(rect.y1))
-        logging.info("    y2: {}".format(rect.y2))
-        logging.info("    Confidence: {}".format(rect.score))
-
-    # save Image
-    if FLAGS.output_image is None:
-        output_name = input_image.split('.')[0] + '_rects.png'
+    image_input = FLAGS.input_image 
+    if (os.path.isdir(image_input)):
+        input_images = os.listdir(image_input)
+        input_images = [os.path.join(image_input, x) for x in input_images]
     else:
-        output_name = FLAGS.output_image
+        input_images = [image_input] 
 
-    scp.misc.imsave(output_name, output_image)
-    logging.info("")
-    logging.info("Output image saved to {}".format(output_name))
+    for input_image in input_images:
+        if input_image.endswith(".png"):
+            logging.info("Starting inference using {} as input".format(input_image))
 
-    logging.info("")
-    logging.warning("Do NOT use this Code to evaluate multiple images.")
+            # Load and resize input image
+            image = scp.misc.imread(input_image)
+            image = scp.misc.imresize(image, (hypes["image_height"],
+                                              hypes["image_width"]),
+                                      interp='cubic')
+            feed = {image_pl: image}
 
-    logging.warning("Demo.py is **very slow** and designed "
-                    "to be a tutorial to show how the KittiBox works.")
-    logging.warning("")
-    logging.warning("Please see this comment, if you like to apply demo.py to"
-                    "multiple images see:")
-    logging.warning("https://github.com/MarvinTeichmann/KittiBox/"
-                    "issues/15#issuecomment-301800058")
+            # Run KittiBox model on image
+            pred_boxes = prediction['pred_boxes_new']
+            pred_confidences = prediction['pred_confidences']
+            (np_pred_boxes, np_pred_confidences) = sess.run([pred_boxes,
+                                                             pred_confidences],
+                                                            feed_dict=feed)
+            
+            # Apply non-maximal suppression
+            # and draw predictions on the image
+            output_image, rectangles = kittibox_utils.add_rectangles(
+                hypes, [image], np_pred_confidences,
+                np_pred_boxes, show_removed=False,
+                use_stitching=True, rnn_len=1,
+                min_conf=0.50, tau=hypes['tau'], color_acc=(0, 255, 0))
+
+            threshold = 0.5
+            accepted_predictions = []
+            # removing predictions <= threshold
+            for rect in rectangles:
+                if rect.score >= threshold:
+                    accepted_predictions.append(rect)
+
+            print('')
+            logging.info("{} Cars detected".format(len(accepted_predictions)))
+
+            boxes_coords = []
+            
+            # Printing coordinates of predicted rects.
+            for i, rect in enumerate(accepted_predictions):
+                logging.info("")
+                logging.info("Coordinates of Box {}".format(i))
+                logging.info("    x1: {}".format(rect.x1))
+                logging.info("    x2: {}".format(rect.x2))
+                logging.info("    y1: {}".format(rect.y1))
+                logging.info("    y2: {}".format(rect.y2))
+                logging.info("    Confidence: {}".format(rect.score))
+
+                boxes_coords.append("Car 0.00 0 0.00 {} {} {} {} 0 0 0 0 0 0 0 {}\n".format(rect.x1, rect.y1, rect.x2, rect.y2, rect.score))  
+
+            #save boxes    
+            if FLAGS.save_boxes_dir is not None:
+                boxes_filename = os.path.join(FLAGS.save_boxes_dir, input_image.split('/')[-1].split('.')[0] + '_boxes.txt') 
+                boxes_file = open(boxes_filename, "w")
+                boxes_file.writelines(boxes_coords)
+                boxes_file.close()
+                logging.info("") 
+                logging.info("Boxes saved to {}".format(boxes_filename))
+                
+            # save Image
+            if FLAGS.output_dir is not None:
+                output_name = os.path.join(FLAGS.output_dir, input_image.split('/')[-1].split('.')[0] + '_rects.png') 
+                scp.misc.imsave(output_name, output_image)
+                logging.info("")
+                logging.info("Output image saved to {}".format(output_name))
+
+            logging.info("")
+
+        else:
+            logging.info("{} is not in .png format. Edit in demo.py to accept other input file types".format(input_image))
+            logging.info("")
+
+ #   logging.warning("Do NOT use this Code to evaluate multiple images.")
+
+ #   logging.warning("Demo.py is **very slow** and designed "
+ #                   "to be a tutorial to show how the KittiBox works.")
+ #   logging.warning("")
+ #   logging.warning("Please see this comment, if you like to apply demo.py to"
+ #                   "multiple images see:")
+ #   logging.warning("https://github.com/MarvinTeichmann/KittiBox/"
+ #                   "issues/15#issuecomment-301800058")
 
 if __name__ == '__main__':
     tf.app.run()
