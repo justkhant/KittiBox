@@ -7,11 +7,11 @@
     "evaluator_file" : "../evals/kitti_eval.py"
     },
     "data": {
-        "train_file": "KittiBox/train.txt",
-        "val_file": "KittiBox/val.txt",
+        "train_file": "../data/train.txt",
+        "val_file": "../data/val.txt",
         "truncate_data": false,
         "eval_cmd": "../submodules/KittiObjective2/./evaluate_object2",
-        "label_dir": "KittiBox/training/label_2"
+        "label_dir": "../data/training/label_2"
     },
     "logging": {
         "display_iter": 200,

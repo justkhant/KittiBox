@@ -14,7 +14,7 @@ import numpy as np
 
 import scipy as scp
 import scipy.misc
-
+import cv2
 from scipy.misc import imread, imresize
 
 import tensorflow as tf
@@ -139,6 +139,11 @@ def _load_kitti_txt(kitti_txt, hypes, jitter=False, random_shuffel=True):
                 im = imresize(
                     im, (hypes["image_height"], hypes["image_width"]),
                     interp='cubic')
+                #change to grayscale
+                im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+                im = np.expand_dims(im, axis=2)
+                im = np.tile(im, (1, 1, 3)) 
+                
             if jitter:
                 jitter_scale_min = 0.9
                 jitter_scale_max = 1.1
