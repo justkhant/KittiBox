@@ -49,6 +49,7 @@ def _rezoom(hyp, pred_boxes, early_feat, early_feat_channels,
                                                            early_feat_channels,
                                                            w_offset, h_offset))
         interp_indices = tf.concat(axis=0, values=indices)
+       
         rezoom_features = train_utils.interp(early_feat,
                                              interp_indices,
                                              early_feat_channels)
@@ -489,7 +490,7 @@ def evaluation(hyp, input_imgs, original_imgs, labels, decoded_logits, losses, g
         return plot_image
 
 
-    if (hypes["input_type"] == 'EVENT'):
+    if (hyp["input_type"] == 'EVENT'):
         [pred_log_img] = tf.py_func(log_image,
                                     [original_imgs, test_pred_confidences,
                                      test_pred_boxes, global_step, 'pred'],
