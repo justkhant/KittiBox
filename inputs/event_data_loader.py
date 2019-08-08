@@ -18,8 +18,8 @@ import tensorflow as tf
 import matplotlib
 import matplotlib.pyplot as plt
 
-from utils.data_utils2 import annotation_to_h5
-from utils.annolist import AnnotationLib2 as AnnoLib
+from utils.event_data_utils import annotation_to_h5
+from utils.annolist import event_AnnotationLib as AnnoLib
 from utils.rect import Rect
 
 from collections import namedtuple

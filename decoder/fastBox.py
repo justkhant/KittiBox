@@ -328,10 +328,12 @@ def loss(hypes, decoded_logits, labels):
     Returns:
       loss: Loss tensor of type float.
     """
-
-    confidences, boxes,  mask, calib, calib_pinv, xy_scale = labels
-    boxes, dimensions, location, alpha = tf.split(boxes, [4, 3, 3, 1], 3) 
-    
+    if(hypes["input_type"] == "EVENT"): 
+        confidences, boxes,  mask, calib, calib_pinv, xy_scale = labels
+        boxes, dimensions, location, alpha = tf.split(boxes, [4, 3, 3, 1], 3) 
+    else:
+        confidences, boxes, mask = labels
+        
     pred_boxes = decoded_logits['pred_boxes']
     pred_logits = decoded_logits['pred_logits']
     pred_confidences = decoded_logits['pred_confidences']
@@ -407,7 +409,7 @@ def loss(hypes, decoded_logits, labels):
     return losses
 
 
-def evaluation(hyp, event_imgs, original_imgs, labels, decoded_logits, losses, global_step):
+def evaluation(hyp, input_imgs, original_imgs, labels, decoded_logits, losses, global_step):
     """
     Compute summary metrics for tensorboard
     """
@@ -416,8 +418,12 @@ def evaluation(hyp, event_imgs, original_imgs, labels, decoded_logits, losses, g
     pred_boxes = decoded_logits['pred_boxes']
     # Estimating Accuracy
     grid_size = hyp['grid_width'] * hyp['grid_height']
-    confidences, boxes, mask, calib, calib_pinv, xy_scale = labels
 
+    if (hyp["input_type"] == "EVENT"):
+        confidences, boxes, mask, calib, calib_pinv, xy_scale = labels
+    else:
+        confidences, boxes, mask = labels
+        
     new_shape = [hyp['batch_size'], hyp['grid_height'],
                  hyp['grid_width'], hyp['num_classes']]
     pred_confidences_r = tf.reshape(pred_confidences, new_shape)
@@ -483,28 +489,28 @@ def evaluation(hyp, event_imgs, original_imgs, labels, decoded_logits, losses, g
         return plot_image
 
 
-    
-    [pred_log_img] = tf.py_func(log_image,
-                              [original_imgs, test_pred_confidences,
-                               test_pred_boxes, global_step, 'pred'],
-                              [tf.float32])
+    if (hypes["input_type"] == 'EVENT'):
+        [pred_log_img] = tf.py_func(log_image,
+                                    [original_imgs, test_pred_confidences,
+                                     test_pred_boxes, global_step, 'pred'],
+                                    [tf.float32])
 
-    [true_log_img] = tf.py_func(log_image,
-                              [original_imgs, confidences,
-                               mask, global_step, 'true'],
-                              [tf.uint8])
+        [true_log_img] = tf.py_func(log_image,
+                                    [original_imgs, confidences,
+                                     mask, global_step, 'true'],
+                                    [tf.uint8])
     
-    tf.summary.image('pred_boxes', pred_log_img)
-    tf.summary.image('true_boxes', true_log_img)
+        tf.summary.image('pred_boxes', pred_log_img)
+        tf.summary.image('true_boxes', true_log_img)
 
 
     [pred_log_img_events] = tf.py_func(log_image,
-                              [event_imgs, test_pred_confidences,
+                              [input_imgs, test_pred_confidences,
                                test_pred_boxes, global_step, 'pred'],
                               [tf.float32])
 
     [true_log_img_events] = tf.py_func(log_image,
-                              [event_imgs, confidences,
+                              [input_imgs, confidences,
                                mask, global_step, 'true'],
                               [tf.uint8])
     

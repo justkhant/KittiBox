@@ -19,7 +19,7 @@ def inference(hypes, images, train=True):
       softmax_linear: Output tensor with the computed logits.
     """
     vgg16_npy_path = os.path.join(hypes['dirs']['data_dir'], "vgg16.npy")
-    vgg_fcn = fcn8_vgg.FCN8VGG(vgg16_npy_path=vgg16_npy_path)
+    vgg_fcn = fcn8_vgg.FCN8VGG(hypes["input_channels"], vgg16_npy_path=vgg16_npy_path)
 
     '''
     num_classes does not influence training when KittiBox is used alone.

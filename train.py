@@ -48,6 +48,8 @@ tf.app.flags.DEFINE_boolean(
                    'output will be saved to the folder TV_DIR_RUNS/debug, '
                    'hence it will get overwritten by further runs.'))
 
+flags.DEFINE_string('input_type', 'COLOR',
+                    'Type of input training data')
 
 def main(_):
     utils.set_gpus_to_use()
@@ -63,8 +65,20 @@ def main(_):
     with open(tf.app.flags.FLAGS.hypes, 'r') as f:
         logging.info("f: %s", f)
         hypes = json.load(f)
-    utils.load_plugins()
 
+    hypes["input_type"] = tf.app.flags.FLAGS.input_type
+    if (hypes["input_type"] == 'COLOR'):
+        hypes["input_channels"] = 3
+    elif (hypes["input_type"] == 'GRAYSCALE'):
+        hypes["input_channels"] = 1
+    elif (hypes["input_type"] == 'EVENT'):
+        hypes["input_channels"] = 9
+    else:
+        logging.error("data_type {} not supported.".format(hypes["input_type"]))
+        exit(1)
+    
+    utils.load_plugins()
+    
     if 'TV_DIR_RUNS' in os.environ:
         os.environ['TV_DIR_RUNS'] = os.path.join(os.environ['TV_DIR_RUNS'],
                                                  'KittiBox')

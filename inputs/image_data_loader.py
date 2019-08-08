@@ -14,7 +14,7 @@ import numpy as np
 
 import scipy as scp
 import scipy.misc
-
+import cv2
 from scipy.misc import imread, imresize
 
 import tensorflow as tf
@@ -99,11 +99,70 @@ def _generate_mask(hypes, ignore_rects):
     return mask
 
 
-def _load_kitti_txt(kitti_txt, hypes, jitter=False, random_shuffel=True):
+def _load_data(image_file, gt_image_file, hypes, jitter=False):
     """Take the txt file and net configuration and create a generator
     that outputs a jittered version of a random image from the annolist
     that is mean corrected."""
 
+    rect_list = read_kitti_anno(gt_image_file,
+                                detect_truck=hypes['detect_truck'])
+
+    anno = AnnoLib.Annotation()
+    anno.rects = rect_list
+
+    im = scp.misc.imread(image_file)
+    if im.shape[2] == 4:
+        im = im[:, :, :3]
+    if im.shape[0] != hypes["image_height"] or \
+       im.shape[1] != hypes["image_width"]:
+        if True:
+            anno = _rescale_boxes(im.shape, anno,
+                                  hypes["image_height"],
+                                  hypes["image_width"])
+        im = imresize(
+            im, (hypes["image_height"], hypes["image_width"]),
+            interp='cubic')
+
+    if (hypes["input_type"] == "GRAYSCALE"):  
+        #change to grayscale
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        im = np.expand_dims(im, axis=2)
+                    
+                
+    if jitter:
+        jitter_scale_min = 0.9
+        jitter_scale_max = 1.1
+        jitter_offset = 16
+        im, anno = annotation_jitter(
+            im, anno, target_width=hypes["image_width"],
+            target_height=hypes["image_height"],
+            jitter_scale_min=jitter_scale_min,
+            jitter_scale_max=jitter_scale_max,
+            jitter_offset=jitter_offset)
+
+    pos_list = [rect for rect in anno.rects if rect.classID == 1]
+    pos_anno = fake_anno(pos_list)
+
+    boxes, confs = annotation_to_h5(hypes,
+                                    pos_anno,
+                                    hypes["grid_width"],
+                                    hypes["grid_height"],
+                                    hypes["rnn_len"])
+
+    mask_list = [rect for rect in anno.rects if rect.classID == -1]
+    mask = _generate_mask(hypes, mask_list)
+
+    boxes = boxes.reshape([hypes["grid_height"],
+                           hypes["grid_width"], 4])
+    confs = confs.reshape(hypes["grid_height"], hypes["grid_width"])
+
+    return im.astype(np.float32), boxes.astype(np.float32), confs.astype(np.float32), rects.astype(np.float32), mask.astype(np.float32)
+
+
+def create_dataset(kitti_txt, hypes, random_shuffel=True):
+    image_files = []
+    gt_image_files = []
+    
     base_path = os.path.realpath(os.path.dirname(kitti_txt))
     files = [line.rstrip() for line in open(kitti_txt)]
     if hypes['data']['truncate_data']:
@@ -121,55 +180,25 @@ def _load_kitti_txt(kitti_txt, hypes, jitter=False, random_shuffel=True):
             assert os.path.exists(gt_image_file), \
                 "File does not exist: %s" % gt_image_file
 
-            rect_list = read_kitti_anno(gt_image_file,
-                                        detect_truck=hypes['detect_truck'])
+            image_files.append(image_file)
+            gt_image_files.append(gt_image_file)
 
-            anno = AnnoLib.Annotation()
-            anno.rects = rect_list
+    image_files_t = tf.constant(image_files)
+    gt_image_files_t = tf.constant(gt_image_files_t)
 
-            im = scp.misc.imread(image_file)
-            if im.shape[2] == 4:
-                im = im[:, :, :3]
-            if im.shape[0] != hypes["image_height"] or \
-               im.shape[1] != hypes["image_width"]:
-                if True:
-                    anno = _rescale_boxes(im.shape, anno,
-                                          hypes["image_height"],
-                                          hypes["image_width"])
-                im = imresize(
-                    im, (hypes["image_height"], hypes["image_width"]),
-                    interp='cubic')
-            if jitter:
-                jitter_scale_min = 0.9
-                jitter_scale_max = 1.1
-                jitter_offset = 16
-                im, anno = annotation_jitter(
-                    im, anno, target_width=hypes["image_width"],
-                    target_height=hypes["image_height"],
-                    jitter_scale_min=jitter_scale_min,
-                    jitter_scale_max=jitter_scale_max,
-                    jitter_offset=jitter_offset)
+    dataset = tf.data.Dataset.from_tensor_slices((image_files_t, gt_image_files_t))
+    hypes["rnn_len"] = 1
+    dataset = dataset.map(lambda im, gt: tf.py_func(load_data, [im, gt, hypes], [tf.float32, tf.float32, tf.float32, tf.float32])) 
 
-            pos_list = [rect for rect in anno.rects if rect.classID == 1]
-            pos_anno = fake_anno(pos_list)
+    batched_dataset = dataset.batch(hypes["batch_size"], drop_remainder=True)
+    batched_dataset = batched_dataset.prefetch(buffer_size=hypes["batch_size"])
+    batched_dataset = batched_dataset.repeat() 
+    iterator = batched_dataset.make_one_shot_iterator()
+    next_element = iterator.get_next() 
 
-            boxes, confs = annotation_to_h5(hypes,
-                                            pos_anno,
-                                            hypes["grid_width"],
-                                            hypes["grid_height"],
-                                            hypes["rnn_len"])
+    return next_element 
 
-            mask_list = [rect for rect in anno.rects if rect.classID == -1]
-            mask = _generate_mask(hypes, mask_list)
-
-            boxes = boxes.reshape([hypes["grid_height"],
-                                   hypes["grid_width"], 4])
-            confs = confs.reshape(hypes["grid_height"], hypes["grid_width"])
-
-            yield {"image": im, "boxes": boxes, "confs": confs,
-                   "rects": pos_list, "mask": mask}
-
-
+            
 def _make_sparse(n, d):
     v = np.zeros((d,), dtype=np.float32)
     v[n] = 1.
