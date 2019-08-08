@@ -73,6 +73,7 @@ def main(_):
         hypes["input_channels"] = 1
     elif (hypes["input_type"] == 'EVENT'):
         hypes["input_channels"] = 9
+        hypes["input_file"] = '../inputs/event_data_loader.py'
     else:
         logging.error("data_type {} not supported.".format(hypes["input_type"]))
         exit(1)
