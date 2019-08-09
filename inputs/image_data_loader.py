@@ -168,34 +168,35 @@ def create_dataset(kitti_txt, hypes, random_shuffel=True):
     if hypes['data']['truncate_data']:
         files = files[:10]
         random.seed(0)
-    for epoch in itertools.count():
-        if random_shuffel:
-            random.shuffle(files)
-        for file in files:
-            image_file, gt_image_file = file.split(" ")
-            image_file = os.path.join(base_path, image_file)
-            assert os.path.exists(image_file), \
-                "File does not exist: %s" % image_file
-            gt_image_file = os.path.join(base_path, gt_image_file)
-            assert os.path.exists(gt_image_file), \
-                "File does not exist: %s" % gt_image_file
-
-            image_files.append(image_file)
-            gt_image_files.append(gt_image_file)
+    
+    if random_shuffel:
+        random.shuffle(files)
+    for file in files:
+        image_file, gt_image_file = file.split(" ")
+        image_file = os.path.join(base_path, image_file)
+        assert os.path.exists(image_file), \
+            "File does not exist: %s" % image_file
+        gt_image_file = os.path.join(base_path, gt_image_file)
+        assert os.path.exists(gt_image_file), \
+            "File does not exist: %s" % gt_image_file
+            
+        image_files.append(image_file)
+        gt_image_files.append(gt_image_file)
 
     image_files_t = tf.constant(image_files)
-    gt_image_files_t = tf.constant(gt_image_files_t)
-
+    gt_image_files_t = tf.constant(gt_image_files)
+    
     dataset = tf.data.Dataset.from_tensor_slices((image_files_t, gt_image_files_t))
     hypes["rnn_len"] = 1
-    dataset = dataset.map(lambda im, gt: tf.py_func(load_data, [im, gt, hypes], [tf.float32, tf.float32, tf.float32, tf.float32])) 
+    load_data_tf = lambda im, gt: _load_data(im, gt, hypes)
+    dataset = dataset.map(lambda im, gt: tf.py_func(load_data_tf, [im, gt], [tf.float32, tf.float32, tf.float32, tf.float32]), num_parallel_calls=hypes["num_parallel_map_calls"]) 
 
     batched_dataset = dataset.batch(hypes["batch_size"], drop_remainder=True)
     batched_dataset = batched_dataset.prefetch(buffer_size=hypes["batch_size"])
     batched_dataset = batched_dataset.repeat() 
     iterator = batched_dataset.make_one_shot_iterator()
     next_element = iterator.get_next() 
-
+    
     return next_element 
 
             

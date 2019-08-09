@@ -273,7 +273,7 @@ def create_dataset(kitti_txt, hypes, random_shuffle1=True):
     dataset = dataset.map(lambda hdf5, gt, calib, img: load_data(hypes, hdf5, gt, calib, img),
                           num_parallel_calls=hypes["num_parallel_map_calls"])
 
-    batched_dataset = dataset.batch(hypes["batch_size"], drop_remainder=True)
+    batched_dataset = dataset.batch(hypes["batch_size"], drop_remainder=True) 
     batched_dataset = batched_dataset.prefetch(buffer_size=hypes["batch_size"])
     batched_dataset = batched_dataset.repeat() 
     iterator = batched_dataset.make_one_shot_iterator()
