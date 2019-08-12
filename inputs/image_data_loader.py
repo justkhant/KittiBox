@@ -156,7 +156,7 @@ def _load_data(image_file, gt_image_file, hypes, jitter=False):
                            hypes["grid_width"], 4])
     confs = confs.reshape(hypes["grid_height"], hypes["grid_width"])
 
-    return im.astype(np.float32), boxes.astype(np.float32), confs.astype(np.float32), rects.astype(np.float32), mask.astype(np.float32)
+    return im.astype(np.float32), confs.astype(np.float32), boxes.astype(np.float32), mask.astype(np.float32)
 
 
 def create_dataset(kitti_txt, hypes, random_shuffel=True):
