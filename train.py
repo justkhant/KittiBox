@@ -69,12 +69,16 @@ def main(_):
     hypes["input_type"] = tf.app.flags.FLAGS.input_type
     if (hypes["input_type"] == 'COLOR'):
         hypes["input_channels"] = 3
+        
     elif (hypes["input_type"] == 'GRAYSCALE'):
         hypes["input_channels"] = 1
+        hypes["dirs"]["output_dir"] = 'RUNS/grayscale_box' 
     elif (hypes["input_type"] == 'EVENT'):
         hypes["input_channels"] = 9
         hypes["input_file"] = '../inputs/event_data_loader.py'
         hypes["data"]["train_file"] = 'data/event_train.txt'
+        hypes["dirs"]["output_dir"] = 'RUNS/events_box'
+        
     else:
         logging.error("data_type {} not supported.".format(hypes["input_type"]))
         exit(1)
