@@ -1,24 +1,10 @@
-# KittiBox
+# This Branch...
 
-KittiBox is a collection of scripts to train out model FastBox on the [Kitti Object Detection Dataset](http://www.cvlibs.net/datasets/kitti/eval_object.php). A detailed description of Fastbox can be found in our [MultiNet paper](https://arxiv.org/abs/1612.07695).
-
- <img src="data/images/007007.png" width="288"> <img src="data/images/007404.png" width="288"> <img src="data/images/007241.png" width="288">
-
- <img src="data/images/007034.png" width="288"> <img src="data/images/007029.png" width="288"> <img src="data/images/007066.png" width="288">
-
-FastBox is designed to archive a high detection performance at a very fast inference speed. On Kitti data the model has a throughput of 28 fps (36ms), and is more than double as fast as FasterRCNN. Despite its impressive speed FastBox outperforms Faster-RCNN significantly.
-
-
-Task          | moderate   |    easy      | hard          |   speed (ms) | speed (fps)
---------------|------------|--------------|---------------|------------- |----------
-FastBox       |    86.45 %     |   92.80 %  |   67.59 %    |  35.75 ms   |  27.97
-Faster-RCNN<sup>[1](#myfootnote1)</sup>   |    78.42 %     |   91.62 %  |   66.85 %    |  78.30 ms    |  12.77
-
-The code contains for `train`, `evaluate` and `visualize` FastBox in tensorflow. It is build to be compatible with the [TensorVision](http://tensorvision.readthedocs.io/en/master/user/tutorial.html#workflow) backend which allows to organize experiments in a very clean way. Also check out [KittiSeg](https://github.com/MarvinTeichmann/KittiSeg#kittiseg) a similar project implementing a state-of-the-art road segmentation model. The code for joint inference can be found in the [MultiNet](https://github.com/MarvinTeichmann/MultiNet) repository.
+Changes made to the original repositories allows more input types to be used for training, other than the normal, RGB, Kitti images. Currently, event data, with 9 channels, and grayscale images, with 1 channel, are supported. Demo.py has also been changed so labels can be generated for RGB images. 
 
 ## Requirements
 
-The code requires Tensorflow 1.0 as well as the following python libraries: 
+The code requires **Tensorflow 1.11.0** and **Python 2**, as well as the following python libraries: 
 
 * matplotlib
 * numpy
@@ -28,131 +14,132 @@ The code requires Tensorflow 1.0 as well as the following python libraries:
 
 Those modules can be installed using: `pip install numpy scipy pillow matplotlib runcython` or `pip install -r requirements.txt`.
 
-## Tensorflow 1.0rc
-
-This code requires `Tensorflow Version >= 1.0rc` to run. There have been a few breaking changes recently. If you are currently running an older tensorflow version, I suggest creating a new `virtualenv` and install 1.0rc using:
-
-```bash
-export TF_BINARY_URL=https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow_gpu-1.0.0rc0-cp27-none-linux_x86_64.whl
-pip install --upgrade $TF_BINARY_URL
-```
-
-Above commands will install the linux version with gpu support. For other versions follow the instructions [here](https://www.tensorflow.org/versions/r1.0/get_started/os_setup).
-
 ## Setup
 
-1. Clone this repository: `git clone https://github.com/MarvinTeichmann/KittiBox.git`
-2. Initialize all submodules: `git submodule update --init --recursive`
+1. Clone this repository: `git clone https://github.com/justkhant/KittiBox.git`
+2. Switch to the`khantk_grasp_merged` branch: `git checkout khantk_grasp_merged' 
+2. Go into the `submodules` directory: `cd submodules` 
+3. Clone the TensorVision repository in this folder and switch it to the `khantk_grasp_merged` branch:
+    - `git clone https://github.com/justkhant/TensorVision.git
+    - `git checkout khantk_grasp_merged`
+4. Do the same with the tensorflow_fcn repository: 
+    - `git clone https://github.com/justkhant/tensorflow-fcn`
+    - `git checkout khantk_grasp_merged`
 3. Run `cd submodules/utils && make` to build cython code
-4. [Optional] Download Kitti Object Detection Data 
+4. Now, returning to the KittiBox root directory, download `vgg.16.npy` using: `wget ftp://mi.eng.cam.ac.uk/pub/mttt2/models/vgg16.npy` and place it in a new directory named `DATA`. 
+5. [Optional] Download Kitti Object Detection Data 
     1. Retrieve Kitti data url here: [http://www.cvlibs.net/download.php?file=data_object_image_2.zip](http://www.cvlibs.net/download.php?file=data_object_image_2.zip)
     2. Call `python download_data.py --kitti_url URL_YOU_RETRIEVED`
-5. [Optional] Run `cd submodules/KittiObjective2/ && make` to build the Kitti evaluation code (see [submodules/KittiObjective2/README.md](submodules/KittiObjective2/README.md) for more information)
+6. [Optional] Run `cd submodules/KittiObjective2/ && make` to build the Kitti evaluation code (see [submodules/KittiObjective2/README.md](submodules/KittiObjective2/README.md) for more information)
 
-Running `demo.py` does not require step 4. and step 5. Those steps are only required if you want to train your own model using `train.py` or bench a model against the official evaluation score using `evaluate.py`. Also note, that I strongly recommend using `download_data.py` instead of downloading the data yourself. The script will also extract and prepare the data. See [Managing Folders](README.md#managing-folders) if you like to control where the data is stored.
+Running `demo.py` does not require step 4. and step 5. Those steps are only required if you want to train your own model using `train.py`.
 
-#### Microsoft Windows Users
+## Training Your Own Data
 
-This project is developed, tested and maintained on a Linux operation system. It is written to be compatible with Windows, however a few modification are neccasary. You can find instructions on how to make the code run under Windows [here](https://github.com/Khaos/DD2017/tree/kittiEdit/Code/KittiBox#kittibox------implementation-on-windows10-geforce960).
+If you already have your own training data that you want to use, how should the data be structured?
 
-In general I would however suggest to install Linux, at least on a virtual system. Getting used to Linux is not that hard and most Deep Learning Code is written for Linux. On the long run you will save yourselfe quite a bit of pain.
+First, create a directory named `training` in the `data` directory. This is where all the relevant training data will be stored. 
+For instance, if you have a `image_2` directory containing the images, a `label_2` directory containing labels, and a `calib` directory containing the calibrations, the folder structure should look like this:
+```
+KittBox/
+   ...
+   data/
+      train.txt
+      ...
+      training/
+         -> image_2 
+         -> label_2
+         -> calib
+```
+If you also have event data with the same labels/calib, you can move it into `training` as well:
+```
+KittBox/
+   ...
+   data/
+      train.txt 
+      ...
+      training/
+         -> events
+         image_2 
+         label_2
+         calib
+```
+Now, open the `train.txt` file located in the `data` directory. This text file is used to specify the data to be passed into the dataloader. You should see two columns of text, one for the paths to each training image, and one for the paths to each label. By default, the paths should be pointing to images. 
+```
+training/image_2/000000.png training/label_2/000000.txt
+training/image_2/000001.png training/label_2/000001.txt
+training/image_2/000002.png training/label_2/000002.txt
+training/image_2/000003.png training/label_2/000003.txt
+```
+If you want to change the data, you can either edit this existing file, or use this as a template to be used to make your own train text files. I prefer the latter, because if you want to switch between different data, it's going to be a pain to keep changing the same text file. It's much simpler to have different ones and change which text file to use instead. 
 
+Make sure the paths to the data are correct. For instance, if I wanted to use my event data instead of images, I would make an `event_train.txt` file like this: 
+```
+training/events/000000_data.hdf5 training/label_2/000000.txt
+training/events/000001_data.hdf5 training/label_2/000001.txt
+training/events/000002_data.hdf5 training/label_2/000002.txt
+training/events/000003_data.hdf5 training/label_2/000003.txt
+```
+Honestly there's a lot of flexibility in where you can put the data because you can edit the paths to match wherever it is. But, using the given structure is recommended. Next, is how to specify which `train.txt` file to use:
 
+Open the configuration file `hypes/kittiBox.json`. This is the default config file that contains global parameters that the network uses. As a side note, we can actaully make our own hypes file as well and use that instead, but in our case, it is much easier to just edit the default. 
 
-#### Update installation
+In the code, go to the following [section]( https://github.com/justkhant/KittiBox/blob/284152f16a0611f87453c080c73f6dcf9983f6ee/hypes/kittiBox.json#L13): 
+```
+...
+"data": {
+        "train_file": "../data/train.txt",
+        "val_file": "../val.txt",
+        "truncate_data": false,
+        "eval_cmd": "../submodules/KittiObjective2/./evaluate_object2",
+        "label_dir": "KittiBox/training/label_2"
+    },
+...
+```
+Change the `train_file` parameter to whatever text file you want to use. For instance, to use my event data, I would change the param to this: 
+`"train_file": "../data/event_train.txt"` 
 
-To update an existing KittiBox installation do:
+Your data is now ready to train! Note that this txt file switching happens automatically in `train.py`. 
 
-1. Pull all patches: `git pull`
-2. Update all submodules: `git submodule update --init --recursive`
+## Training your data
 
-If you forget the second step you might end up with an inconstant repository state. You will already have the new code for KittiBox but run it old submodule versions code. This can work, but I do not run any tests to verify this.
+Run `python2 train.py` to train the network using normal RGB Kitti images
+Run `python2 train.py --input_type EVENT` to train the network using events from .hdf5 files 
+Run `python2 train.py --input_type GRAYSCALE` to train the network using black and white images, by converting the RGB Kitti images. 
 
-## Tutorial
-
-### Getting started
-
-Run: `python demo.py --input_image data/demo.png` to obtain a prediction using [demo.png](data/demo.png) as input.
-
-Run: `python evaluate.py` to compute train and validation scores.
-
-Run: `python train.py` to train a new model on the Kitti Data.
-
-If you like to understand the code, I would recommend looking at [demo.py](demo.py) first. I have documented each step as  	thoroughly as possible in this file.
-
-### Modifying Model & Train on your own data
-
-The model is controlled by the file `hypes/kittiBox.json`. Modifying this file should be enough to train the model on your own data and adjust the architecture according to your needs. You can create a new file `hypes/my_hype.json` and train that architecture using:
-
-`python train.py --hypes hypes/my_hype.json`
-
-
-
-For advanced modifications, the code is controlled by 5 different modules, which are specified in `hypes/kittiBox.json`.
+Let's take a closer look at this [code](https://github.com/justkhant/KittiBox/blob/284152f16a0611f87453c080c73f6dcf9983f6ee/train.py#L73) here in `train.py` to see how the switching works:
 
 ```
-"model": {
-    "input_file": "../inputs/idl_input.py",
-    "architecture_file" : "../encoder/vgg.py",
-    "objective_file" : "../decoder/fastBox.py",
-    "optimizer_file" : "../optimizer/generic_optimizer.py",
-    "evaluator_file" : "../inputs/cars_eval.py"
-},
+ hypes["input_type"] = tf.app.flags.FLAGS.input_type
+    if (hypes["input_type"] == 'COLOR'):
+        hypes["input_channels"] = 3        
+    elif (hypes["input_type"] == 'GRAYSCALE'):
+        hypes["input_channels"] = 1
+        hypes["dirs"]["output_dir"] = 'RUNS/grayscale_box' 
+    elif (hypes["input_type"] == 'EVENT'):
+        hypes["input_channels"] = 9
+        hypes["input_file"] = '../inputs/event_data_loader.py'
+        hypes["data"]["train_file"] = 'data/event_train.txt'
+        hypes["dirs"]["output_dir"] = 'RUNS/events_box'
+    else:
+        logging.error("data_type {} not supported.".format(hypes["input_type"]))
+        exit(1)
 ```
+The input_type directly changes the `input_file`, `input_channels`, `train_file`, and `output_dir` params in `hypes/kittiBox.json`. Note that the default parameters in config file is set to `COLOR` mode. 
+Here are descriptions of the relevant parameters:
+   - The `input_file` param sets the dataloader that we use. Right now, there are two different loaders, one for events and one for images
+   - The `input_channels` param changes the number of input channels the first layer of the training network has.   
+   - The `train_file` param dictates which text file we use for the training data. The names of the different text files are hardcoded,    but if the text files are named something different, you can go change this directly in this file. 
+   - The `log_dir` param dictates the directory where the model is saved it as it trains. Like the `train_file` param, `log_dir` changes automatically as well, but you can directly change the code if you want to save the model in a different directory than the ones that have been hardcoded. 
 
-Those modules operate independently. This allows easy experiments with different datasets (`input_file`), encoder networks (`architecture_file`), etc. Also see [TensorVision](http://tensorvision.readthedocs.io/en/master/user/tutorial.html#workflow) for a specification of each of those files.
+The `log_dir` plays a important role in the training the network, as I will explain in the following section.
 
+## Continue training. 
+After we begin training with train.py _kssh_ kicks you out after a certain amout of time. So, we need a way to pick up the training right where it left off. Running `train.py` again would restart the training, so in this case we will use a different script:
 
-## Managing Folders
+Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/color_box` to continue training for color images
+Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/grayscale_box --input_type GRAYSCALE` to continue training for b&w 
+Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/event_box --input_type EVENT` to continue training for events 
 
-By default, the data is stored in the folder `KittiBox/DATA` and the output of runs in `KittiBox/RUNS`. This behaviour can be changed by adjusting the environoment Variabels: `$TV_DIR_DATA` and `$TV_DIR_RUNS`.
+`tv-continue.py` finds the specified box that the model has been saved in continues the training. Therefore, `logdir` must align with the specific box each input type is save in. If you used custom `log_dir` boxes, then you must match them accordingly. Also, The input type has to be the type first used to train the network.  
 
-For organizing your experiments you can use:
-`python train.py --project batch_size_bench --name size_5`. This will store the run in the subfolder:  `$TV_DIR_RUNS/batch_size_bench/size_5_%DATE`
-
-This is useful if you want to run different series of experiments.
-
-
-## Utilize TensorVision backend
-
-KittiBox is build on top of the TensorVision [TensorVision](https://github.com/TensorVision/TensorVision) backend. TensorVision modulizes computer vision training and helps organizing experiments. 
-
-
-To utilize the entire TensorVision functionality install it using 
-
-`$ cd KittiBox/submodules/TensorVision` <br>
-`$ python setup install`
-
-Now you can use the TensorVision command line tools, which includes:
-
-`tv-train --hypes hypes/KittiBox.json` trains a json model. <br>
-`tv-continue --logdir PATH/TO/RUNDIR` continues interrupted training <br>
-`tv-analyze --logdir PATH/TO/RUNDIR` evaluated trained model <br>
-
-
-## Useful Flags & Variabels
-
-Here are some Flags which will be useful when working with KittiBox and TensorVision. All flags are avaible across all scripts. 
-
-`--hypes` : specify which hype-file to use <br>
-`--logdir` : specify which logdir to use <br>
-`--gpus` : specify on which GPUs to run the code <br>
-`--name` : assign a name to the run <br>
-`--project` : assign a project to the run <br>
-`--nosave` : debug run, logdir will be set to `debug` <br>
-
-In addition the following TensorVision environoment Variables will be useful:
-
-`$TV_DIR_DATA`: specify meta directory for data <br>
-`$TV_DIR_RUNS`: specify meta directiry for output <br>
-`$TV_USE_GPUS`: specify default GPU behavour. <br>
-
-On a cluster it is useful to set `$TV_USE_GPUS=force`. This will make the flag `--gpus` manditory and ensure, that run will be executed on the right gpu.
-
-# Acknowledge
-
-This project started out as a fork of [TensorBox](https://github.com/TensorBox/TensorBox).
-
--------
-
-<a name="myfootnote1">1</a>: Code to reproduce the Faster-RCNN can be found [here](https://github.com/MarvinTeichmann/kitti). The repository contains the official py-faster-rcnn code applied to the Kitti Object Detection Dataset.
