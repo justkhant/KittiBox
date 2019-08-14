@@ -20,7 +20,7 @@ Those modules can be installed using: `pip install numpy scipy pillow matplotlib
 2. Switch to the`khantk_grasp_merged` branch: `git checkout khantk_grasp_merged' 
 2. Go into the `submodules` directory: `cd submodules` 
 3. Clone the TensorVision repository in this folder and switch it to the `khantk_grasp_merged` branch:
-    - `git clone https://github.com/justkhant/TensorVision.git
+    - `git clone https://github.com/justkhant/TensorVision.git`
     - `git checkout khantk_grasp_merged`
 4. Do the same with the tensorflow_fcn repository: 
     - `git clone https://github.com/justkhant/tensorflow-fcn`
@@ -136,7 +136,8 @@ Here are descriptions of the relevant parameters:
 
 The `log_dir` plays a important role in the training the network, as I will explain in the following section.
 
-## Continue training. 
+## Continue training
+
 After we begin training with train.py, _kssh_ kicks you out after a certain amout of time. So, we need a way to pick up the training right where it left off. Running `train.py` again would restart the training, so in this case we will use a different script:
 
 Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/color_box` to continue training for color images
