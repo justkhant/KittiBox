@@ -148,7 +148,8 @@ Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/event_box 
 
 `tv-continue.py` finds the specified box that the model has been saved in and continues the training using previously trained weights and network architecture. Therefore, `logdir` must align with the specific box each input type is save in. If you used custom `log_dir` boxes, then you must match them accordingly. Also, The input type has to be the type first used to train the network.  
 
-##Evaluating Data using a Model
+## Evaluating Data using a Model
+
 Run `python2 demo.py --input_images path/to/images/ --output_dir path/to/outdir --save_images_dir path/to/savedir` to evaluate images using the pretrained Kitti Detection Model. Using the `--output_dir` and `--save_boxes_dir` will save the images with bounding boxes drawn on them, and save the coordinates of the boxes in text files. 
 
 Here are the flags in more detail: 
