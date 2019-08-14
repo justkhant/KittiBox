@@ -104,7 +104,9 @@ Your data is now ready to train! Note that this txt file switching happens autom
 ## Training your data
 
 Run `python2 train.py` to train the network using normal RGB Kitti images
+
 Run `python2 train.py --input_type EVENT` to train the network using events from .hdf5 files 
+
 Run `python2 train.py --input_type GRAYSCALE` to train the network using black and white images, by converting the RGB Kitti images. 
 
 Let's take a closer look at this [code](https://github.com/justkhant/KittiBox/blob/284152f16a0611f87453c080c73f6dcf9983f6ee/train.py#L73) here in `train.py` to see how the switching works:
@@ -135,11 +137,24 @@ Here are descriptions of the relevant parameters:
 The `log_dir` plays a important role in the training the network, as I will explain in the following section.
 
 ## Continue training. 
-After we begin training with train.py _kssh_ kicks you out after a certain amout of time. So, we need a way to pick up the training right where it left off. Running `train.py` again would restart the training, so in this case we will use a different script:
+After we begin training with train.py, _kssh_ kicks you out after a certain amout of time. So, we need a way to pick up the training right where it left off. Running `train.py` again would restart the training, so in this case we will use a different script:
 
 Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/color_box` to continue training for color images
+
 Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/grayscale_box --input_type GRAYSCALE` to continue training for b&w 
+
 Run `python2 submodules/TensorVision/bin/tv-continue.py --logdir RUNS/event_box --input_type EVENT` to continue training for events 
 
-`tv-continue.py` finds the specified box that the model has been saved in continues the training. Therefore, `logdir` must align with the specific box each input type is save in. If you used custom `log_dir` boxes, then you must match them accordingly. Also, The input type has to be the type first used to train the network.  
+`tv-continue.py` finds the specified box that the model has been saved in and continues the training using previously trained weights and network architecture. Therefore, `logdir` must align with the specific box each input type is save in. If you used custom `log_dir` boxes, then you must match them accordingly. Also, The input type has to be the type first used to train the network.  
+
+##Evaluating Data using a Model
+Run `python2 demo.py --input_images path/to/images/ --output_dir path/to/outdir --save_images_dir path/to/savedir` to evaluate images using the pretrained Kitti Detection Model. Using the `--output_dir` and `--save_boxes_dir` will save the images with bounding boxes drawn on them, and save the coordinates of the boxes in text files. 
+
+Here are the flags in more detail: 
+1. `--input_images` = Used to specify what the input images are. Right now supports both single image files as well as directories containing multiple images. It also supports an hdf5 file that contains raw images in the following structure: `hdf5["davis"]["left"]["image_raw"]. 
+2. `--output_dir` = Use this flag to save images with the bounding boxes drawn on them. The specified directory must exist.  
+3. `--save_boxes_dir` = Use this flag to save to boxes to label files. The text files follow the same format as Kitti labels. The specified directory must exist.
+4. `--logdir` = Use this flag if you want to evaluate images using a model that you have trained instead of the pretrained Kitti Detection Model. All you have to do is specify the box that the model has been saved in. For instance, if i want to evaluate images using a network trained with grayscale images, I would run `python2 demo.py --logdir RUNS/grayscale_box --input_image path/to/images`. 
+
+
 
