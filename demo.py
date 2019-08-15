@@ -100,25 +100,28 @@ def maybe_download_and_extract(runs_dir):
 
 def image_transform(image, hypes):
 
-    #make 3 channels
-    image = np.expand_dims(image, axis=2)
-    image = np.tile(image, (1, 1, 3))
-    
     #slice off the hood
-    image = image[0:198,:,:]
-    
+    image = image[0:198,:]
+   
     #resize image
-    original_height, _, _ = image.shape
+    original_height, _ = image.shape
     new_width = int(hypes["image_width"] * original_height / hypes["image_height"])
-    image = scp.misc.imresize(image, (hypes["image_height"], new_width),
-                              interp='cubic')
 
+    image = scp.misc.imresize(image, (hypes["image_height"], new_width),
+                            interp='cubic')
+
+    image = np.expand_dims(image, axis=2)
+    #expand to 3 dims if color
+    if (hypes["input_type"] == 'COLOR'):
+        image = np.tile(image, (1, 1, 3)) 
+   
     #pad sides
     pad_width_1 = int((hypes["image_width"] - new_width) / 2)
     pad_width_2 = hypes["image_width"] - new_width - pad_width_1
     image = np.pad(image, [(0, 0), (pad_width_1, pad_width_2), (0, 0)], mode='constant')
 
     image = exposure.adjust_gamma(image, 0.5) 
+
     return image 
 
 def main(_):
@@ -159,7 +162,7 @@ def main(_):
         # Create placeholder for input
         image_pl = tf.placeholder(tf.float32)
         image = tf.expand_dims(image_pl, 0)
-
+       
         # build Tensorflow graph using the model from logdir
         prediction = core.build_inference_graph(hypes, modules,
                                                 image=image)
@@ -175,8 +178,16 @@ def main(_):
 
         logging.info("Weights loaded successfully.")
 
+
+    #Set images to evaluate    
     image_input = FLAGS.input_image 
     if (os.path.isdir(image_input)):
+        if (hypes["input_type"] == 'GRAYSCALE'):
+            logging.error("RGB images cannot be evaluated with network for grayscale") 
+            exit(1)
+        elif (hypes["input_type"] == 'EVENT'):
+            logging.error("RGB images cannot be evaluated with network for events")
+            exit(1)
         input_images = os.listdir(image_input)
         input_images = [os.path.join(image_input, x) for x in input_images]
     else:
@@ -184,10 +195,20 @@ def main(_):
             hdf5_file = h5py.File(image_input, "r")
             input_images = hdf5_file["davis"]["left"]["image_raw"] 
             input_images = [input_images[i] for i in range(len(input_images)) if i % 60 == 0]  
-
+            if (hypes["input_type"] == 'COLOR'):
+                logging.info("WARNING:")
+                logging.info("Evaluating grayscale images as RGB.")
         else:
+            if (hypes["input_type"] == 'GRAYSCALE'):
+                logging.error("RGB image cannot be evaluated with network for grayscale") 
+                exit(1)
+            elif (hypes["input_type"] == 'EVENT'):
+                logging.error("RGB image cannot be evaluated with network for events")
+                exit(1)
             input_images = [image_input] 
 
+
+    #Evaluate images
     for i, input_image in enumerate(input_images):
 
         if not isinstance(input_image, basestring):
@@ -217,14 +238,16 @@ def main(_):
         (np_pred_boxes, np_pred_confidences) = sess.run([pred_boxes,
                                                         pred_confidences],
                                                         feed_dict=feed)
-        
+        if (image.shape[-1] == 1):
+            image = np.tile(image, (1, 1, 3)) 
+            
         # Apply non-maximal suppression
-        # and draw predictions on the image
+        # and draw predictions on the image   
         output_image, rectangles = kittibox_utils.add_rectangles(
-            hypes, [image], np_pred_confidences,
-            np_pred_boxes, show_removed=False,
-            use_stitching=True, rnn_len=1,
-            min_conf=0.5, tau=hypes['tau'], color_acc=(0, 255, 0))
+                hypes, image, np_pred_confidences,
+                np_pred_boxes, show_removed=False,
+                use_stitching=True, rnn_len=1,
+                min_conf=0.5, tau=hypes['tau'], color_acc=(0, 255, 0))
         
         threshold = 0
         accepted_predictions = []
